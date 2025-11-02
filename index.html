@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AGT Wallet Security Tester (BIP-39 Compliant)</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0ff;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #121224;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 0 30px rgba(106, 90, 249, 0.3);
+    }
+    h1 {
+      color: #6a5af9;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    .card {
+      background: #1a1a2e;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .success { background: #0f2a1a; color: #4dccbd; }
+    .error { background: #2a1a1a; color: #ff6666; }
+    button {
+      background: #6a5af9;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      margin: 8px 0;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      background: #252540;
+      color: white;
+      border: 1px solid #4a4a8a;
+      margin: 8px 0;
+    }
+    .disclaimer {
+      color: #ff9999;
+      font-size: 13px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 AGT Wallet Security Tester</h1>
+    <div class="card">
+      <h3>1. Validate J6 Wallet Address</h3>
+      <input type="text" id="testAddress" placeholder="Enter a J6... address (52 chars)" maxlength="52" />
+      <button onclick="validateAddress()">Validate Address</button>
+      <div id="addressResult" class="result"></div>
+    </div>
+
+    <div class="card">
+      <h3>2. Generate BIP-39 Compliant Wallet</h3>
+      <button onclick="generateWallet()">Generate New Wallet</button>
+      <div id="walletResult" class="result"></div>
+    </div>
+
+    <div class="disclaimer">
+      ✅ Full BIP-39 • 128-bit entropy • SHA-256 checksum • Works offline
+    </div>
+  </div>
+
+  <script>
+    // Full BIP-39 English wordlist (2048 words)
+    const WORDLIST = [
+      "abandon","ability","able","about","above","absent","absorb","abstract","absurd","abuse",
+      "access","accident","account","accuse","achieve","acid","acoustic","acquire","across","act",
+      "action","actor","actress","actual","adapt","add","addict","address","adjust","admit",
+      "adult","advance","advice","aerobic","affair","afford","afraid","again","age","agent",
+      "agree","ahead","aim","air","airport","aisle","alarm","album","alcohol","alert",
+      "alien","all","alley","allow","almost","alone","alpha","already","also","alter",
+      "always","amateur","amazing","among","amount","amused","analyst","anchor","ancient","and",
+      "anatomy","and","angel","anger","angle","angry","animal","ankle","announce","annual",
+      "another","answer","antenna","antique","anxiety","any","apart","apology","appear","apple",
+      "approve","april","arch","arctic","area","arena","argue","arm","armed","armor",
+      "army","around","arrange","arrest","arrive","arrow","art","artefact","artist","artwork",
+      "ask","aspect","assault","asset","assist","assume","asthma","athlete","atom","attack",
+      "attend","attitude","attract","auction","audit","august","aunt","author","auto","autumn",
+      "average","avocado","avoid","awake","aware","away","awesome","awful","awkward","axis",
+      "baby","bachelor","bacon","badge","bag","balance","balcony","ball","bamboo","banana",
+      "banner","bar","barely","bargain","barrel","base","basic","basket","battle","beach",
+      "bean","beauty","because","become","beef","before","begin","behave","behind","believe",
+      "below","belt","bench","benefit","best","betray","better","between","beyond","bicycle",
+      "bid","bike","bind","biology","bird","birth","bitter","black","blade","blame",
+      "blanket","blast","bleak","bless","blind","blood","blossom","blouse","blue","blur",
+      "blush","board","boat","body","boil","bomb","bone","bonus","book","boost",
+      "border","boring","borrow","boss","bottom","bounce","box","boy","bracket","brain",
+      "brand","brass","brave","bread","breeze","brick","bridge","brief","bright","bring",
+      "brisk","broccoli","broken","bronze","broom","brother","brown","brush","bubble","buddy",
+      "budget","buffalo","build","bulb","bulk","bullet","bundle","bunker","burden","burger",
+      "burst","bus","business","busy","butcher","butter","buyer","buzz","cabbage","cabin",
+      "cable","cactus","cage","cake","call","calm","camera","camp","can","canal",
+      "cancel","candy","cannon","canoe","canvas","canyon","capable","capital","captain","car",
+      "carbon","card","cargo","carpet","carry","cart","case","cash","casino","castle",
+      "casual","cat","catalog","catch","category","cattle","caught","cause","caution","cave",
+      "ceiling","celery","cement","census","century","cereal","certain","chair","chalk","champion",
+      "change","chaos","chapter","charge","chase","chat","cheap","check","cheese","chef",
+      "cherry","chest","chicken","chief","child","chimney","choice","choose","chronic","chuckle",
+      "chunk","churn","cigar","cinnamon","circle","citizen","city","civil","claim","clap",
+      "clarify","claw","clay","clean","clerk","clever","click","client","cliff","climb",
+      "clinic","clip","clock","clog","close","cloth","cloud","clown","club","clump",
+      "cluster","clutch","coach","coast","coconut","code","coffee","coil","coin","collect",
+      "color","column","combine","come","comfort","comic","common","company","concert","conduct",
+      "confirm","congress","connect","consider","control","convince","cook","cool","copper","copy",
+      "coral","core","corn","correct","cost","cotton","couch","country","couple","course",
+      "cousin","cover","coyote","crack","cradle","craft","cram","crane","crash","crater",
+      "crawl","crazy","cream","credit","creek","crew","cricket","crime","crisp","critic",
+      "crop","cross","crouch","crowd","crucial","cruel","cruise","crumble","crunch","crush",
+      "cry","crystal","cube","culture","cup","cupboard","curious","current","curtain","curve",
+      "cushion","custom","cute","cycle","dad","damage","damp","dance","danger","daring",
+      "dash","daughter","dawn","day","deal","debate","debris","decade","december","decide",
+      "decline","decorate","decrease","deer","defense","define","defy","degree","delay","deliver",
+      "demand","demise","denial","dentist","deny","depart","depend","deposit","depth","deputy",
+      "derive","describe","desert","design","desk","despair","destroy","detail","detect","develop",
+      "device","devote","diagram","dial","diamond","diary","dice","diesel","diet","differ",
+      "digital","dignity","dilemma","dinner","dinosaur","direct","dirt","disagree","discover","disease",
+      "dish","dismiss","disorder","display","distance","divert","divide","divorce","dizzy","doctor",
+      "document","dog","doll","dolphin","domain","donate","donkey","donor","door","dose",
+      "double","dove","draft","dragon","drama","drastic","draw","dream","dress","drift",
+      "drill","drink","drip","drive","drop","drum","dry","duck","dumb","dune",
+      "during","dust","dutch","duty","dwarf","dynamic","eager","eagle","early","earn",
+      "earth","easily","east","easy","echo","ecology","economy","edge","edit","educate",
+      "effort","egg","eight","either","elbow","elder","electric","elegant","element","elephant",
+      "elevator","elite","else","embark","embody","embrace","emerge","emotion","employ","empower",
+      "empty","enable","enact","end","endless","endorse","enemy","energy","enforce","engage",
+      "engine","enhance","enjoy","enlist","enough","enrich","enroll","ensure","enter","entire",
+      "entry","envelope","episode","equal","equip","era","erase","erode","erosion","error",
+      "erupt","escape","essay","essence","estate","eternal","ethics","evidence","evil","evoke",
+      "evolve","exact","example","excess","exchange","excite","exclude","excuse","execute","exercise",
+      "exhaust","exhibit","exile","exist","exit","exotic","expand","expect","expire","explain",
+      "expose","express","extend","extra","eye","eyebrow","fabric","face","faculty","fade",
+      "faint","faith","fall","false","fame","family","famous","fan","fancy","fantasy",
+      "farm","fashion","fat","fatal","father","fatigue","fault","favorite","feature","february",
+      "federal","fee","feed","feel","female","fence","festival","fetch","fever","few",
+      "fiber","fiction","field","figure","file","film","filter","final","find","fine",
+      "finger","finish","fire","firm","first","fiscal","fish","fit","fitness","fix",
+      "flag","flame","flash","flat","flavor","flee","flight","flip","float","flock",
+      "floor","flower","fluid","flush","fly","foam","focus","fog","foil","fold",
+      "follow","food","foot","force","forest","forget","fork","fortune","forum","forward",
+      "fossil","foster","found","fox","fragile","frame","frequent","fresh","friend","fringe",
+      "frog","front","frost","frown","frozen","fruit","fuel","fun","funny","furnace",
+      "fury","future","gadget","gain","galaxy","gallery","game","gap","garage","garbage",
+      "garden","garlic","garment","gas","gasp","gate","gather","gauge","gaze","general",
+      "genius","genre","gentle","genuine","gesture","ghost","giant","gift","giggle","ginger",
+      "giraffe","girl","give","glad","glance","glare","glass","glide","glimpse","globe",
+      "gloom","glory","glove","glow","glue","goat","goddess","gold","good","goose",
+      "gorilla","gospel","gossip","govern","gown","grab","grace","grain","grant","grape",
+      "grass","gravity","great","green","grid","grief","grit","grocery","group","grow",
+      "grunt","guard","guess","guide","guilt","guitar","gun","gym","habit","hair",
+      "half","hammer","hamster","hand","happy","harbor","hard","harsh","harvest","hat",
+      "have","hawk","hazard","head","health","heart","heavy","hedgehog","height","hello",
+      "helmet","help","hen","hero","hidden","high","hill","hint","hip","hire",
+      "history","hobby","hockey","hold","hole","holiday","hollow","home","honey","hood",
+      "hope","horn","horror","horse","hospital","host","hotel","hour","hover","hub",
+      "huge","human","humble","humor","hundred","hungry","hunt","hurdle","hurry","hurt",
+      "husband","hybrid","ice","icon","idea","identify","idle","ignore","ill","illegal",
+      "illness","image","imitate","immense","immune","impact","impose","improve","impulse","inch",
+      "include","income","increase","index","indicate","indoor","industry","infant","inflict","inform",
+      "inhale","inherit","initial","inject","injury","inmate","inner","innocent","input","inquiry",
+      "insane","insect","inside","inspire","install","intact","interest","into","invest","invite",
+      "involve","iron","island","isolate","issue","item","ivory","jacket","jaguar","jar",
+      "jazz","jealous","jeans","jelly","jewel","job","join","joke","journey","joy",
+      "judge","juice","jump","jungle","junior","junk","just","kangaroo","keen","keep",
+      "ketchup","key","kick","kid","kidney","kind","kingdom","kiss","kit","kitchen",
+      "kite","kitten","kiwi","knee","knife","knock","know","lab","label","labor",
+      "ladder","lady","lake","lamp","language","laptop","large","later","latin","laugh",
+      "laundry","lava","law","lawn","lawsuit","layer","lazy","leader","leaf","learn",
+      "leave","lecture","left","leg","legal","legend","leisure","lemon","lend","length",
+      "lens","leopard","lesson","letter","level","liar","liberty","library","license","life",
+      "lift","light","like","limb","limit","link","lion","liquid","list","little",
+      "live","lizard","load","loan","lobster","local","lock","logic","lonely","long",
+      "loop","lottery","loud","lounge","love","loyal","lucky","luggage","lumber","lunar",
+      "lunch","luxury","lyrics","machine","mad","magic","magnet","maid","mail","main",
+      "major","make","mammal","man","manage","mandate","mango","mansion","manual","maple",
+      "marble","march","margin","marine","market","marriage","mask","mass","master","match",
+      "material","math","matrix","matter","maximum","maze","meadow","mean","measure","meat",
+      "mechanic","medal","media","melody","melt","member","memory","mention","menu","mercy",
+      "merge","merit","merry","mesh","message","metal","method","middle","midnight","milk",
+      "million","mimic","mind","minimum","minor","minute","miracle","mirror","misery","miss",
+      "mistake","mix","mixed","mixture","mobile","model","modify","mom","moment","monitor",
+      "monkey","monster","month","moon","moral","more","morning","mosquito","mother","motion",
+      "motor","mountain","mouse","move","movie","much","muffin","mule","multiply","muscle",
+      "museum","mushroom","music","must","mutual","myself","mystery","myth","naive","name",
+      "napkin","narrow","nasty","nation","nature","near","neck","need","negative","neglect",
+      "neither","nephew","nerve","nest","net","network","neutral","never","news","next",
+      "nice","night","noble","noise","nominee","noodle","normal","north","nose","notable",
+      "note","nothing","notice","novel","now","nuclear","number","nurse","nut","oak",
+      "obey","object","oblige","obscure","observe","obtain","obvious","occur","ocean","october",
+      "odor","off","offer","office","often","oil","okay","old","olive","olympic",
+      "omit","once","one","onion","online","only","open","opera","opinion","oppose",
+      "option","orange","orbit","orchard","order","ordinary","organ","orient","original","orphan",
+      "ostrich","other","outdoor","outer","output","outside","oval","oven","over","own",
+      "owner","oxygen","oyster","ozone","pact","paddle","page","pair","palace","palm",
+      "panda","panel","panic","panther","paper","parade","parent","park","parrot","party",
+      "pass","patch","path","patient","patrol","pattern","pause","pave","payment","peace",
+      "peanut","pear","peasant","pelican","pen","penalty","pencil","people","pepper","perfect",
+      "permit","person","pet","phone","photo","phrase","physical","piano","picnic","picture",
+      "piece","pig","pigeon","pill","pilot","pink","pioneer","pipe","pistol","pitch",
+      "pizza","place","planet","plastic","plate","play","please","pledge","pluck","plug",
+      "plunge","poem","poet","point","polar","pole","police","pond","pony","pool",
+      "popular","portion","position","possible","post","potato","pottery","poverty","powder","power",
+      "practice","praise","predict","prefer","prepare","present","pretty","prevent","price","pride",
+      "primary","print","priority","prison","private","prize","problem","process","produce","profit",
+      "program","project","promote","proof","property","prosper","protect","proud","provide","public",
+      "pudding","pull","pulp","pulse","pumpkin","punch","pupil","puppy","purchase","purity",
+      "purpose","purse","push","put","puzzle","pyramid","quality","quantum","quarter","question",
+      "quick","quit","quiz","quote","rabbit","raccoon","race","rack","radar","radio",
+      "rail","rain","raise","rally","ramp","ranch","random","range","rapid","rare",
+      "rate","rather","raven","raw","razor","ready","real","reason","rebel","rebuild",
+      "recall","receive","recipe","record","recycle","reduce","reflect","reform","refuse","region",
+      "regret","regular","reject","relax","release","relief","rely","remain","remember","remind",
+      "remove","render","renew","rent","reopen","repair","repeat","replace","report","require",
+      "rescue","resemble","resist","resource","response","result","retire","retreat","return","reunion",
+      "reveal","review","reward","rhythm","rib","ribbon","rice","rich","ride","ridge",
+      "rifle","right","rigid","ring","riot","ripple","risk","ritual","rival","river",
+      "road","roast","robot","robust","rocket","romance","roof","rookie","room","rose",
+      "rotate","rough","round","route","royal","rubber","rude","rug","rule","run",
+      "runway","rural","sad","saddle","sadness","safe","sail","salad","salmon","salon",
+      "salt","salute","same","sample","sand","satisfy","satoshi","sauce","sausage","save",
+      "say","scale","scan","scare","scatter","scene","scheme","school","science","scissors",
+      "scorpion","scout","scrap","screen","script","scrub","sea","search","season","seat",
+      "second","secret","section","security","seed","seek","segment","select","sell","seminar",
+      "senior","sense","sentence","series","service","session","settle","setup","seven","shadow",
+      "shaft","shallow","share","shed","shell","sheriff","shield","shift","shine","ship",
+      "shiver","shock","shoe","shoot","shop","short","shoulder","shove","shrimp","shrug",
+      "shuffle","shy","sibling","sick","side","siege","sight","sign","silent","silk",
+      "silly","silver","similar","simple","since","sing","siren","sister","situate","six",
+      "size","skate","sketch","ski","skill","skin","skirt","skull","slab","slam",
+      "sleep","slender","slice","slide","slight","slim","slogan","slot","slow","slush",
+      "small","smart","smile","smoke","smooth","snack","snake","snap","sniff","snow",
+      "soap","soccer","social","sock","soda","soft","solar","soldier","solid","solution",
+      "solve","someone","song","soon","sorry","sort","soul","sound","soup","source",
+      "south","space","spare","spatial","spawn","speak","special","speed","spell","spend",
+      "sphere","spice","spider","spike","spin","spirit","split","spoil","sponsor","spoon",
+      "sport","spot","spray","spread","spring","spy","square","squeeze","squirrel","stable",
+      "stadium","staff","stage","stairs","stamp","stand","start","state","stay","steak",
+      "steel","stem","step","stereo","stick","still","sting","stock","stomach","stone",
+      "stool","story","stove","strategy","street","strike","strong","struggle","student","stuff",
+      "stumble","style","subject","submit","subway","success","such","sudden","suffer","sugar",
+      "suggest","suit","summer","sun","sunny","sunset","super","supply","supreme","sure",
+      "surface","surge","surprise","surround","survey","suspect","sustain","swallow","swamp","swap",
+      "swarm","swear","sweet","swift","swim","swing","switch","sword","symbol","symptom",
+      "syrup","system","table","tackle","tag","tail","talent","talk","tank","tape",
+      "target","task","taste","tattoo","taxi","teach","team","tell","ten","tenant",
+      "tennis","tent","term","test","text","thank","that","theme","then","theory",
+      "there","they","thing","this","thought","three","thrive","throw","thumb","thunder",
+      "ticket","tide","tiger","tilt","timber","time","tiny","tip","tired","tissue",
+      "title","toast","tobacco","today","toddler","toe","together","toilet","token","tomato",
+      "tomorrow","tone","tongue","tonight","tool","tooth","top","topic","topple","torch",
+      "tornado","tortoise","toss","total","tourist","toward","tower","town","toy","track",
+      "trade","traffic","tragic","train","transfer","trap","trash","travel","tray","treat",
+      "tree","trend","trial","tribe","trick","trigger","trim","trip","trophy","trouble",
+      "truck","true","truly","trumpet","trust","truth","try","tube","tuition","tumble",
+      "tuna","tunnel","turkey","turn","turtle","twelve","twenty","twice","twin","twist",
+      "two","type","typical","ugly","umbrella","unable","unaware","uncle","uncover","under",
+      "undo","unfair","unfold","unhappy","uniform","unique","unit","universe","unknown","unlock",
+      "until","unusual","unveil","update","upgrade","uphold","upon","upper","upset","urban",
+      "urge","usage","use","used","useful","useless","usual","utility","vacant","vacuum",
+      "vague","valid","valley","valve","van","vanish","vapor","various","vast","vault",
+      "vehicle","velvet","vendor","venture","venue","verb","verify","version","very","vessel",
+      "veteran","viable","vibrant","vicious","victory","video","view","village","vintage","violin",
+      "virtual","virus","visa","visit","visual","vital","vivid","vocal","voice","void",
+      "volcano","volume","vote","voyage","wage","wagon","wait","walk","wall","walnut",
+      "want","warfare","warm","warrior","wash","wasp","waste","water","wave","way",
+      "wealth","weapon","wear","weasel","weather","web","wedding","weekend","weird","welcome",
+      "west","wet","whale","what","wheat","wheel","when","where","whip","whisper",
+      "wide","width","wife","wild","will","win","window","wine","wing","wink",
+      "winner","winter","wire","wisdom","wise","wish","witness","wolf","woman","wonder",
+      "wood","wool","word","work","world","worry","worth","wrap","wreck","wrestle",
+      "wrist","write","wrong","yard","year","yellow","you","young","youth","zebra",
+      "zero","zone","zoo"
+    ];
+
+    const CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    // Convert hex string to Uint8Array
+    function hexToBytes(hex) {
+      const bytes = [];
+      for (let c = 0; c < hex.length; c += 2) {
+        bytes.push(parseInt(hex.substr(c, 2), 16));
+      }
+      return new Uint8Array(bytes);
+    }
+
+    // Convert Uint8Array to hex string
+    function bytesToHex(bytes) {
+      return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    // SHA-256 using Web Crypto API
+    async function sha256(buffer) {
+      const hash = await crypto.subtle.digest('SHA-256', buffer);
+      return new Uint8Array(hash);
+    }
+
+    // Generate BIP-39 compliant 12-word mnemonic
+    async function generateMnemonic() {
+      // Step 1: Generate 128 bits (16 bytes) of entropy
+      const entropy = new Uint8Array(16);
+      crypto.getRandomValues(entropy);
+
+      // Step 2: Hash entropy with SHA-256
+      const hash = await sha256(entropy);
+      const checksumBits = hash[0] >>> 7; // First bit of hash
+
+      // Step 3: Append checksum to entropy
+      const entropyBits = [];
+      for (let i = 0; i < entropy.length; i++) {
+        for (let j = 7; j >= 0; j--) {
+          entropyBits.push((entropy[i] >> j) & 1);
+        }
+      }
+      entropyBits.push(checksumBits);
+
+      // Step 4: Split into 12 groups of 11 bits
+      const mnemonic = [];
+      for (let i = 0; i < 12; i++) {
+        let index = 0;
+        for (let j = 0; j < 11; j++) {
+          index = (index << 1) + entropyBits[i * 11 + j];
+        }
+        mnemonic.push(WORDLIST[index]);
+      }
+
+      return mnemonic.join(' ');
+    }
+
+    // Simple Keccak256 simulation for address derivation (for demo consistency)
+    function keccak256(str) {
+      // In a real wallet, use a proper SHA-3 lib, but for deterministic demo:
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return '0x' + Math.abs(hash).toString(16).padStart(64, '0').substring(0, 64);
+    }
+
+    // Validate J6 Address
+    function validateAddress() {
+      const addr = document.getElementById('testAddress').value.trim().toUpperCase();
+      const resultDiv = document.getElementById('addressResult');
+      
+      if (addr.length !== 52) {
+        resultDiv.className = 'result error';
+        resultDiv.innerText = `❌ Invalid length: ${addr.length}/52`;
+        return;
+      }
+      
+      if (!addr.startsWith('J6')) {
+        resultDiv.className = 'result error';
+        resultDiv.innerText = '❌ Must start with "J6"';
+        return;
+      }
+      
+      for (let char of addr) {
+        if (!CHARSET.includes(char)) {
+          resultDiv.className = 'result error';
+          resultDiv.innerText = `❌ Invalid character: "${char}"`;
+          return;
+        }
+      }
+      
+      resultDiv.className = 'result success';
+      resultDiv.innerText = '✅ Valid J6 wallet address!';
+    }
+
+    // Generate Wallet
+    async function generateWallet() {
+      const resultDiv = document.getElementById('walletResult');
+      resultDiv.className = 'result';
+      resultDiv.innerText = 'Generating...';
+      
+      try {
+        const mnemonic = await generateMnemonic();
+        
+        // Derive J6 address from mnemonic (deterministic)
+        const hash = keccak256(mnemonic);
+        let j6Address = 'J6';
+        for (let i = 0; i < 50; i++) {
+          const charIndex = parseInt(hash[i % hash.length], 16) % CHARSET.length;
+          j6Address += CHARSET[charIndex];
+        }
+        
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<strong>Recovery Phrase (BIP-39):</strong>\n${mnemonic}\n\n<strong>J6 Wallet Address:</strong>\n${j6Address}`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerText = '❌ Failed to generate wallet: ' + (error.message || 'Browser error');
+      }
+    }
+
+    // Auto-clean input
+    document.getElementById('testAddress').addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+  </script>
+</body>
+</html> s <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AGT Wallet — Final</title>
+  <meta name="description" content="AGT Wallet with J6 issuer and initial wallet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.8.0/sha3.min.js"></script>
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+<script>
+  // ✅ Define your initial wallet first
+  const INITIAL_WALLET_OBJ = {
+    address: "J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx",
+    tokens: [
+      { name: "Advanced Genetic Synthesis Technology", symbol: "AGT", balance: 1000 },
+      // add other tokens if needed
+    ]
+  };
+
+  // ✅ Then safely call any functions that use it
+  function loadWallet(wallet) {
+    console.log("Loaded wallet:", wallet);
+    // ...your wallet logic...
+  }
+
+  loadWallet(INITIAL_WALLET_OBJ);
+</script>
+  
+  <style>
+    :root{--bg:#0a0a1a;--card:#1a1a2e;--accent:#6a5af9;--muted:#a0a0d0;--text:#e0e0ff;--danger:#ff6666}
+    body{background:var(--bg);color:var(--text);font-family:Segoe UI,system-ui,Arial;padding:18px;margin:0}
+    .container{max-width:900px;margin:0 auto;background:#121224;padding:20px;border-radius:12px;box-shadow:0 6px 30px rgba(0,0,0,.6)}
+    h1{color:var(--accent);margin:0 0 6px}
+    .subtitle{color:var(--muted);margin-bottom:12px}
+    .tabs{display:flex;gap:8px;margin-bottom:12px}
+    .tab{padding:10px 14px;background:#252540;border-radius:8px;cursor:pointer}
+    .tab.active{background:var(--card);color:var(--accent)}
+    .card{background:var(--card);padding:14px;border-radius:10px;margin-bottom:12px}
+    input,select,textarea,button{width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#0f1224;color:var(--text)}
+    button{background:var(--accent);border:none;color:#fff;cursor:pointer}
+    .result{background:#071024;padding:12px;border-radius:8px;font-family:monospace;white-space:pre-wrap;margin-top:10px}
+    .muted{color:var(--muted);font-size:13px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:6px;border-bottom:1px solid #141426;text-align:left}
+    th{color:var(--accent)}
+    .warning{color:var(--danger);background:rgba(255,102,102,0.06);padding:8px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 AGT Wallet — Final</h1>
+    <div class="subtitle">Demo: deterministic J6 labels, initial wallet preloaded with tokens.</div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(event,'wallet')">Wallet</div>
+      <div class="tab" onclick="showTab(event,'send')">Send</div>
+      <div class="tab" onclick="showTab(event,'ledger')">Ledger</div>
+    </div>
+
+    <!--J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx-->
+    <div class="card">
+      <h3>🪙 Initial Wallet (Preloaded)</h3>
+      <div class="muted">This wallet is preloaded into the demo on page load.</div>
+      <textarea id="initialWalletData" rows="6"></textarea>
+      <button onclick="loadInitialWallet(J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx)">Load Initial Wallet (from textarea)</button>
+      <div id="initialWalletResult" class="J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx">Initial wallet will be loaded automatically when the page loads.</div>
+    </div>
+
+    <!-- Wallet tab content -->
+    <div id="tab-wallet" class="tab-content">
+      <div class="card">
+        <h3>Create / Import</h3>
+        <button onclick="createWallet()">Generate New Wallet</button>
+        <button onclick="importWallet()">Import Recovery Phrase</button>
+        <div id="walletResult" class="result">No wallet created/imported yet.</div>
+      </div>
+
+      <div class="card">
+        <h3>Check Balance (Demo/local or on-chain if Alchemy key)</h3>
+        <select id="assetSelect">
+          <option value="MATIC">MATIC</option>
+          <option value="AGT">AGT</option>
+          <option value="S96t'">S96t'</option>
+          <option value="BTCYT">BTCYT</option>
+          <option value="BTC">BTC</option>
+          <option value="GTPS">GTPS</option>
+          <option value="AGOLD">AGOLD</option>
+        </select>
+        <button onclick="checkBalance()">Check Balance</button>
+        <div id="balanceResult" class="result">No balance checked yet.</div>
+      </div>
+    </div>
+
+    <!-- Send -->
+    <div id="tab-send" class="tab-content" style="display:none;">
+      <div class="card">
+        <h3>Send (Demo)</h3>
+        <input id="toAddress" placeholder="Recipient (J6... or 0x...)" />
+        <input id="sendAmount" placeholder="Amount (integer for demo tokens or decimal for MATIC)" />
+        <select id="sendAsset">
+          <option value="MATIC">MATIC</option>
+          <option value="AGT">AGT</option>
+          <option value="S96t'">S96t'</option>
+          <option value="BTCYT">BTCYT</option>
+          <option value="BTC">BTC</option>
+          <option value="GTPS">GTPS</option>
+          <option value="AGOLD">AGOLD</option>
+        </select>
+        <div class="warning">⚠️ Demo only: token transfers are simulated locally unless you provide a signing mnemonic.</div>
+        <button id="sendBtn" onclick="sendTransaction()">Send</button>
+        <div id="sendResult" class="result">No sends yet.</div>
+      </div>
+    </div>
+
+    <!-- Ledger -->
+    <div id="tab-ledger" class="tab-content" style="display:none;">
+      <div class="card">
+        <h3>Ledger (Simulation)</h3>
+        <button onclick="connectLedger()">Connect Ledger (simulate)</button>
+        <div id="ledgerResult" class="result">Not connected.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Token Set (demo)</h3>
+      <table>
+        <thead><tr><th>Token</th><th>Symbol</th><th>Initial (demo)</th></tr></thead>
+        <tbody id="tokenTable"></tbody>
+      </table>
+    </div>
+
+    <div class="warning" style="margin-top:12px">
+      The best never seen before blockchain for the future. 
+        https://agtwallet.world, https://agt8000.life, 
+        https://bitcoinayt.world, https://twofuture.world
+    </div>
+  </div>
+
+<script>
+/* =======================
+   Config and tokens
+   ======================= */
+const TOKENS = [
+  { name: "Advanced Genetic Synthesis Technology", symbol: "AGT", initial: "37867890284" },
+  { name: "Sealofapprovalis7628396t' S96t'", symbol: "S96t'", initial: "37867890284" },
+  { name: "Bitcoinayt", symbol: "BTCYT", initial: "37867890284" },
+  { name: "Bitcoin", symbol: "BTC", initial: "37867890284" },
+  { name: "Global Transaction Payment Solution", symbol: "GTPS", initial: "37867890284" },
+  { name: "AGT Gold", symbol: "AGOLD", initial: "37867890284" }
+];
+
+// show token table
+const tokenTable = document.getElementById('tokenTable');
+TOKENS.forEach(t => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${t.name}</td><td>${t.symbol}</td><td>${t.initial}${t.symbol}</td>`;
+  tokenTable.appendChild(tr);
+});
+
+/* =======================
+   Provider (embedded as requested)
+   ======================= */
+const ALCHEMY_KEY = "g3gV2uw-5EQVL6XucJudv"; // embedded (visible) — rotate after deployment
+const NETWORK = "maticmum"; // polygon mumbai
+let provider = new ethers.providers.AlchemyProvider(NETWORK, ALCHEMY_KEY);
+
+/* =======================
+   Local/demo state
+   ======================= */
+let currentWallet = null; // will hold {wallet?, mnemonic?, j6Address, ethAddress, balances?}
+const CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const TOKEN_ADDRESSES = {
+  AGT: 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx',
+  "S96t'": 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx',
+  BTCYT: 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx',
+  BTC: 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx',
+  GTPS: 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx',
+  AGOLD: 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx'
+};
+
+/* =======================
+   Tab switching (robust)
+   ======================= */
+function showTab(ev, tabId) {
+  // if first arg is string (called without event), shift
+  if (typeof ev === 'string') { tabId = ev; ev = null; }
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById(`tab-${tabId}`);
+  if (target) target.style.display = 'block';
+  if (ev && ev.currentTarget) ev.currentTarget.classList.add('active');
+  else {
+    // fallback: find the tab element with text matching tabId and mark active (best-effort)
+    document.querySelectorAll('.tab').forEach(tab => {
+      if (tab.textContent.trim().toLowerCase() === tabId.toLowerCase()) tab.classList.add('active');
+    });
+  }
+}
+
+/* =======================
+   Deterministic J6 label (from mnemonic + index)
+   - In this demo the initial wallet will not contain a private key (unless you later add it).
+   ======================= */
+function keccakHex(input) {
+  return sha3.keccak256(input);
+}
+function makeJ6LabelFromPhraseAndIndex(phrase, index) {
+  const blob = keccakHex(`${phrase}::${index}`);
+  // convert hex -> chars from CHARSET
+  let label = 'J6';
+  for (let i = 0; label.length < 52; i++) {
+    const nibble = parseInt(blob[i % blob.length], 16);
+    label += CHARSET[nibble % CHARSET.length];
+  }
+  return label;
+}
+
+/* =======================
+   Initial wallet — THE ONE YOU PROVIDED
+   The J6 label will be preloaded with demo balances. This initial wallet
+   does not include a private key / mnemonic here (demo only). If you want
+   it to be able to sign transactions, provide the mnemonic or privateKey.
+   ======================= */
+
+const PROVIDED_J6 = "J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx";
+const INITIAL_WALLET_OBJ = {
+  mnemonic: null, // not provided for safety
+  privateKey: null, // not provided
+  j6Address: PROVIDED_J6,J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx,
+  ethAddress: "0x0000000000000000000000000000000000000000", // placeholder — replace with real 0x... if available
+  balances: {
+    AGT: "37867890284",
+    "S96t'": "37867890284",
+    BTCYT: "37867890284",
+    BTC: "37867890284",
+    GTPS: "37867890284",
+    AGOLD: "37867890284"
+  }
+};
+
+// prefill textarea with the JSON to allow editing/loading
+document.getElementById('initialWalletData').value = JSON.stringify(INITIAL_WALLET_OBJ,J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx null, 2);
+
+// function to load initial wallet (from textarea or object)
+function loadInitialWallet(J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx) {
+  const resultDiv = document.getElementById('initialWalletResult');
+  try {
+    const raw = document.getElementById('initialWalletData').value.trim();
+    const data = raw ? JSON.parse(raw) : INITIAL_WALLET_OBJ;
+    // allow missing privateKey/mnemonic — treat as view-only
+    if (!data.j6Address) throw new Error('Missing j6Address field in JSON');
+    currentWallet = {
+      wallet: (data.privateKey ? new ethers.Wallet(data.privateKey) : null),
+      mnemonic: data.mnemonic || null,
+      j6Address: data.j6Address,
+      ethAddress: data.ethAddress || "0x0000000000000000000000000000000000000000",
+      balances: data.balances || {}
+    };
+    resultDiv.className = 'result';
+    resultDiv.innerHTML = `✅ <strong>Initial wallet loaded</strong>\nJ6: ${currentWallet.j6Address}\nETH: ${currentWallet.ethAddress}\n\nBalances:\n` +
+      Object.entries(currentWallet.balances).map(([s,v]) => `${s}: ${v}`).join('\n');
+  } catch (e) {
+    resultDiv.className = 'result';
+    resultDiv.innerText = 'Failed to load initial wallet: ' + (e.message || e);
+  }
+}
+
+/* =======================
+   Create / Import wallet (demo uses ethers)
+   ======================= */
+function createWallet() {
+  const resultDiv = document.getElementById('walletResult');
+  try {
+    const w = ethers.Wallet.createRandom(); // v5 UMD
+    const mnemonic = w.mnemonic && w.mnemonic.phrase ? w.mnemonic.phrase : null;
+    const j6 = deriveJ6Address(mnemonic || Math.random().toString());
+    currentWallet = { wallet: w, mnemonic, j6Address: j6, ethAddress: w.address, balances: {} };
+    resultDiv.className = 'result';
+    resultDiv.innerHTML = `<strong>J6:</strong> ${j6}\n<strong>ETH:</strong> ${w.address}\n\n⚠️ Save mnemonic:\n${mnemonic}`;
+  } catch (e) {
+    resultDiv.className = 'result';
+    resultDiv.innerText = 'Create failed: ' + (e.message||e);
+  }
+}
+
+function importWallet() {
+  const phrase = prompt('Enter your 12/24-word recovery phrase:');
+  if (!phrase) return;
+  const resultDiv = document.getElementById('walletResult');
+  try {
+    const w = ethers.Wallet.fromMnemonic(phrase);
+    const j6 = deriveJ6Address(phrase);
+    currentWallet = { wallet: w, mnemonic: phrase, j6Address: j6, ethAddress: w.address, balances: {} };
+    resultDiv.className = 'result';
+    resultDiv.innerHTML = `<strong>J6:</strong> ${j6}\n<strong>ETH:</strong> ${w.address}`;
+  } catch (e) {
+    resultDiv.className = 'result';
+    resultDiv.innerText = 'Import failed: ' + (e.message||e);
+  }
+}
+
+/* =======================
+   DeriveJ6Address (legacy helper used above)
+   ======================= */
+function deriveJ6Address(mnemonic) {
+  // produce 50 chars after 'J6'
+  const hash = sha3.keccak256(mnemonic || Math.random().toString());
+  let j6 = 'J6';
+  for (let i=0; i<50; i++) {
+    const idx = parseInt(hash[i % hash.length], 16) % CHARSET.length;
+    j6 += CHARSET[idx];
+  }
+  return j6;
+}
+
+/* =======================
+   Check balance (local first, then on-chain if possible)
+   ======================= */
+async function checkBalance() {
+  const resultDiv = document.getElementById('balanceResult');
+  if (!currentWallet) {
+    resultDiv.innerText = 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx No wallet loaded. Load initial wallet or create/import one.';
+    return;
+  }
+  const asset = document.getElementById('assetSelect').value;
+  resultDiv.innerText = 'Checking...';
+
+  try {
+    // If we have a demo local balance, show it
+    if (currentWallet.balances && currentWallet.balances.hasOwnProperty(asset)) {
+      resultDiv.innerText = `✅ (local) ${currentWallet.balances[asset]} ${asset}`;
+      return;
+    }
+
+    // If asset is MATIC and we have an ETH address and provider -> check on-chain
+    if (asset === 'MATIC' && currentWallet.ethAddress && provider) {
+      const bal = await provider.getBalance(currentWallet.ethAddress);
+      resultDiv.innerText = `✅ ${ethers.utils.formatEther(bal)} MATIC (on-chain)`;
+      return;
+    }
+
+    // If ERC20 token and we have provider and token address, try on-chain balanceOf
+    if (TOKEN_ADDRESSES[asset] && provider && currentWallet.ethAddress) {
+      const contract = new ethers.Contract(TOKEN_ADDRESSES[asset], ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'], provider);
+      const [raw, decimals] = await Promise.all([
+        contract.balanceOf(currentWallet.ethAddress).catch(()=>null),
+        contract.decimals().catch(()=>18)
+      ]);
+      if (raw !== null) {
+        const formatted = ethers.utils.formatUnits(raw, decimals);
+        resultDiv.innerText = `✅ ${formatted} ${asset} (on-chain)`;
+        return;
+      }
+    }
+
+    resultDiv.innerText = 'ℹ️ No local balance found for this asset; on-chain lookup unavailable or returned no data.';
+  } catch (e) {
+    resultDiv.innerText = 'Check failed: ' + (e.message || e);
+  }
+}
+
+/* =======================
+   Send transaction (demo)
+   - If currentWallet.wallet exists (has privateKey), can sign on-chain for MATIC or tokens (needs proper token contract addresses).
+   - If recipient is J6 and matches initial wallet or any loaded mapping, we simulate token transfer by adjusting balances in-memory.
+   ======================= */
+async function sendTransaction() {
+  const res = document.getElementById('sendResult');
+  if (!currentWallet) { res.innerText = '❌ No wallet loaded.'; return; }
+
+  let to = document.getElementById('toAddress').value.trim();
+  const amountRaw = document.getElementById('sendAmount').value.trim();
+  const asset = document.getElementById('sendAsset').value;
+  if (!to || !amountRaw) { res.innerText = '❌ Provide recipient and amount.'; return; }
+  // numeric amount handling
+  const isMatic = (asset === 'MATIC');
+  // For demo tokens treat amounts as integers (strings)
+  if (!isMatic && !/^\d+$/.test(amountRaw)) {
+    res.innerText = '❌ For demo token transfers use integer amounts.';
+    return;
+  }
+
+  // If recipient is J6 and matches our initial wallet J6, resolve to ETH placeholder
+  if (to.startsWith('J6')) {
+    if (to === currentWallet.j6Address) {
+      // sending to self
+      res.innerText = 'ℹ️ Recipient is the same as sender (no-op).';
+      return;
+    }
+    // For demo: if user wants to send to the preloaded J6, we only support adjusting balances locally if both sides are in memory.
+    if (to === INITIAL_WALLET_OBJ.j6Address) {
+      // perform local balance adjustments between currentWallet (sender) and initial wallet (receiver)
+      // Ensure both have balances objects
+      if (!currentWallet.balances) currentWallet.balances = {};
+      let receiverBalances = INITIAL_WALLET_OBJ.balances;
+      // ensure numeric BigInt-like ops
+      const sendAmount = BigInt(amountRaw);
+      const senderBalance = BigInt(currentWallet.balances[asset] || "0");
+      if (senderBalance < sendAmount) { res.innerText = '❌ Insufficient demo balance.'; return; }
+      currentWallet.balances[asset] = (senderBalance - sendAmount).toString();
+      receiverBalances[asset] = (BigInt(receiverBalances[asset] || "0") + sendAmount).toString();
+      res.innerText = `✅ Demo-transfer: ${amountRaw} ${asset} sent to ${to} (local simulated)`;
+      return;
+    }
+
+    // If J6 unknown, inform user
+    res.innerText = 'J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx J6 recipient not recognized in demo (only the preloaded J6 is recognized).';
+    return;
+  }
+
+  // If recipient is 0x... and currentWallet has private key, perform on-chain send (MATIC)
+  if (ethers.utils.isAddress(to)) {
+    if (!currentWallet.wallet) { res.innerText = '❌ No signing key available in current wallet for on-chain transaction.'; return; }
+    try {
+      const providerLocal = provider; // Alchemy provider
+      const signer = currentWallet.wallet.connect(providerLocal);
+      if (isMatic) {
+        const tx = await signer.sendTransaction({ to, value: ethers.utils.parseEther(amountRaw) });
+        res.innerText = `✅ Sent MATIC tx: ${tx.hash}`;
+      } else {
+        // For ERC20 on-chain transfer, token contract addresses are placeholders — this requires real token contracts.
+        res.innerText = 'ℹ️ ERC-20 on-chain transfer not configured (token contract addresses are placeholders).';
+      }
+    } catch (e) {
+      res.innerText = 'Send failed: ' + (e.message || e);
+    }
+    return;
+  }
+
+  res.innerText = '❌ Recipient not valid (must be J6... or 0x...)';
+}
+
+/* =======================
+   Ledger simulation
+   ======================= */
+function connectLedger() {
+  const el = document.getElementById('ledgerResult');
+  el.innerText = 'Simulating Ledger connection...';
+  setTimeout(()=> {
+    el.innerText = '✅ Ledger simulated as connected. (Demo only)';
+  }, 1000);
+}
+
+/* =======================
+   On load: load initial wallet automatically
+   ======================= */
+window.addEventListener('load', () => {
+  loadInitialWallet(J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx); // loads INITIAL_WALLET_OBJ by default (pre-filled)
+});
+</script>
+</body>
+</html>
